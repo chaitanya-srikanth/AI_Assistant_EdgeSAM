@@ -20,14 +20,15 @@ from PIL import Image
 from dotenv import load_dotenv
 import cv2
 import requests
-from edge_sam_helper import save_bg_removed_image
-from data_aug import augment_images
+# from edge_sam_helper import save_bg_removed_image
+# from data_aug import augment_images
+from sam_helper import *
 import Config
 import rlef_helper as rlh
 from concurrent.futures import ThreadPoolExecutor 
 
 
-executor = ThreadPoolExecutor(max_workers = 2)
+# executor = ThreadPoolExecutor(max_workers = 2)
 # Load environment variables from the .env file
 load_dotenv()
 
@@ -153,7 +154,7 @@ def send_image_annotation(model_id, tag, label, annotation, filename):
     url = "https://autoai-backend-exjsxe2nda-uc.a.run.app/resource"
     payload = {
         'model': model_id,
-        'status': 'backlog',
+        'status': 'approval',
         # 'csv': f"{csv}",
         'label': label,
         'tag': tag,
@@ -194,12 +195,23 @@ def get_collection_ids():
     
 @app.route('/aihelp', methods=["POST"])
 def make_prediction():
-    
+    print('################333 CALL ################3')
     
     file = request.files['resource']
     
     if 'imageAnnotations' not in request.form.keys():
         return {'status': 'Image does not contain annotations'}, 400
+    
+    if request.is_json:
+        print("JSON Data:")
+        print(request.get_json())
+        
+    if request.form:
+        print("Form Data:")
+        
+    final_result = dict(request.form)
+    print(final_result)
+    print(type(final_result))
     
     
     
@@ -218,46 +230,32 @@ def make_prediction():
 
         image = cv2.imread(filename)
         image_rgb = image.copy()
+       
         
-        '''
-        Mostly, images for phase-1 data augmentation will contain only one annotation per image. So, xyxy[0] is used.
-        If Images have more than one box, code should be changed accordingly. 
-        Edge SAM helper should be give a list of boxes, it will generate the mask accordingly......
-        All the bounding boxes should be iterated through
-        '''
+        
+
+        
     
         xyxy = []
         for box in bboxes:
             points = find_left_upper_right_down(box)
             xyxy.append(points)
         
-        ## THIS PART SHOULD BE ITERATED ##
+        print(xyxy[0])
+        mask = image_mask(filename, xyxy[0])
+        points = maskProcessor(mask, 1)
         
-        input_box = np.array(xyxy[0])
-        print(f'######### INPUT BOX : {input_box} #################')
-        masked_image = save_bg_removed_image(input_box, image_rgb)
+        rlef_annotations = rlh.segmentation_annotation_rlef(points, "object")
         
-        if os.path.exists('masked_images') is not True:
-            os.mkdir('masked_images')
-        image_path = f'masked_images/{filename}'
-        cv2.imwrite(image_path, masked_image)
-        
-        rlh.send_to_rlef(image_path, Config.PHASE2_MODEL_ID , 'phase-2','bg-removed', 'approved', image_annotations)
 
+        rlh.send_to_rlef(filename,"6685900f97eae5e91291d0f4" , 'segment','ai-assistant', 'approval', rlef_annotations)
         
-        objects = [['object', xyxy[0]]]
-        generated_count = 10 
-        label = 'object'
-        
-        ## STARTING DATA AUGMENTATION PROCESS ##
-        # executor.submit(augment_images, image_path, objects, generated_count, Config.AUG_IMG_MODEL_ID, label)
-        augment_images(image_path, objects, generated_count, Config.AUG_IMG_MODEL_ID, label)
-        
-        
+        # final_result["imageAnnotations"] = rlef_annotations
         response_packet = {
-             'csv' : "Background removal done",
-             'metadata': 'Background Removal done'
+            'metadata': 'Segment annotations generated',
+            # 'imageAnnotations' : rlef_annotations
         }
+        print('RESPONSE DONE')
         return jsonify(response_packet), 200
 
     except Exception as e:

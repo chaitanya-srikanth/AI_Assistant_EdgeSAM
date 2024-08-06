@@ -1,3 +1,5 @@
 /EdgeSAM
 /masked_images
 /output
+/weights
+weights/*

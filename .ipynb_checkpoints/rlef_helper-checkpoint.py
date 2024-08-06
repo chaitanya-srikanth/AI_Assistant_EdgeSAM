@@ -20,7 +20,15 @@ def multipointPath_To_WeirdAutoaiAnnotationFormat(annotations, label):
         # obj = bbox[4]
     
     rlef_format = json_creater(li, True)
-    print(rlef_format)
+    # print(rlef_format)
+    return rlef_format
+
+def segmentation_annotation_rlef(segments, label):
+    li = {}
+
+    for segment in segments:
+        li[str(segment)] = label
+    rlef_format = json_creater(li,True)
     return rlef_format
 
 def pointPath_To_WeirdAutoaiAnnotationFormat(bboxes, labels):
@@ -219,22 +227,15 @@ def send_to_rlef(img_path, model_id, tag,label, status, annotation, confidence_s
     headers = {}
     response = requests.request("POST", url, headers=headers, data=payload, files=files)
     print(response.status_code)
-    # print(response.json())
-    if response.status_code == 200:
-        resource_id = response.json()["_id"]
-        return resource_id
-    
-    exceptions = []
-    if response.status_code != 200:
-        raise Exception(f'ERROR UPLOADING ORIGINAL IMAGE: {response.status_code}')
-        exceptions.append(img_path)
-        print('code: ', response.status_code)
-        return exceptions
-    
 
-# print(create_collection("6603cc0bae971c963fd59706", "test"))
-# remove_collection_from_master("6604111643899bbb06ce6de2", "6603d8a6ae971c963fd5d24f")
-# print(check_if_collection_not_exists("6603cc0bae971c963fd59706", "datacard"))
-# get_biggest_version("6603cc0bae971c963fd59706", "phase-1")
-
-# train_model("6603cc0bae971c963fd59706", "forcenmeter", "66055d3c0fdb7c9e17f139d1", "phase-2", True)
+#     if response.status_code == 200:
+#         resource_id = response.json()["_id"]
+#         return resource_id
+    
+#     exceptions = []
+#     if response.status_code != 200:
+#         raise Exception(f'ERROR UPLOADING ORIGINAL IMAGE: {response.status_code}')
+#         exceptions.append(img_path)
+#         print('code: ', response.status_code)
+#         return exceptions
+    
